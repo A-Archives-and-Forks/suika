@@ -7,6 +7,8 @@ import { RemoveElement } from './commands/remove_element';
 import { Editor } from './editor';
 import { AlignCmd, AlignType } from './commands/align';
 import { ArrangeCmd, ArrangeType } from './commands/arrange';
+import { GroupElements } from './commands/group';
+import { Group } from './scene/group';
 
 interface Events {
   itemsChange(items: Graph[]): void;
@@ -27,24 +29,45 @@ class SelectedElements {
   getItems() {
     return [...this.items];
   }
+  getFlatItems() {
+    // TODO: include group itself
+    const flatItemSet = new Set<Graph>();
+
+    const dfs = (graph: Graph) => {
+      if (graph instanceof Group) {
+        for (const child of graph.children) {
+          dfs(child);
+        }
+      } else {
+        flatItemSet.add(graph);
+      }
+    };
+
+    for (const item of this.items) {
+      dfs(item);
+    }
+    return Array.from(flatItemSet);
+  }
   getIdSet() {
     return new Set(this.items.map((item) => item.id));
   }
   setItemsById(ids: Set<string>) {
-    const items: Graph[] = [];
-    let count = ids.size;
+    // console.log({ ids });
+    // const items: Graph[] = [];
+    // let count = ids.size;
 
-    const allGraphs = this.editor.sceneGraph.children;
-    for (let i = 0; i < allGraphs.length; i++) {
-      const item = allGraphs[i];
-      if (ids.has(item.id)) {
-        items.push(item);
-        count--;
-        if (count === 0) {
-          break;
-        }
-      }
-    }
+    // const allGraphs = this.editor.sceneGraph.children;
+    // for (let i = 0; i < allGraphs.length; i++) {
+    //   const item = allGraphs[i];
+    //   if (ids.has(item.id)) {
+    //     items.push(item);
+    //     count--;
+    //     if (count === 0) {
+    //       break;
+    //     }
+    //   }
+    // }
+    const items = this.editor.sceneGraph.getElementsById(ids);
 
     if (items.length === 0) {
       console.warn('can not find element by id');
@@ -172,6 +195,20 @@ class SelectedElements {
 
   selectAll() {
     this.setItems([...this.editor.sceneGraph.children]);
+  }
+
+  group() {
+    if (this.size() === 0) {
+      console.warn('can not group, no element');
+      return;
+    }
+    // TODO:
+
+    console.log('编组！');
+
+    this.editor.commandManager.pushCommand(
+      new GroupElements('Group Elements', this.editor, this.items),
+    );
   }
 }
 

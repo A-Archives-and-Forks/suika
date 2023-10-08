@@ -42,6 +42,7 @@ export interface IPoint {
 export interface IObject {
   id: string;
   name: string;
+  children?: IObject[];
 }
 
 export enum GraphType {
@@ -50,6 +51,7 @@ export enum GraphType {
   Ellipse = 'Ellipse',
   Text = 'Text',
   Line = 'Line',
+  Group = 'Group',
 }
 
 /**
