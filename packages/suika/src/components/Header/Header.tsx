@@ -11,7 +11,7 @@ export const Header: FC = () => {
   return (
     <div className="sk-header">
       <ToolBar />
-      <Title />
+      <Title value="suikajdsfjasdflasjfladf你好。。。。好" />
       <div className="sk-right-area">
         <LocaleSelector />
         <ZoomActions />

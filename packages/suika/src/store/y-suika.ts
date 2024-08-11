@@ -1,30 +1,57 @@
-import { isEqual, pick } from '@suika/common';
+import { type HocuspocusProvider } from '@hocuspocus/provider';
+import { EventEmitter, isEqual, pick } from '@suika/common';
 import {
   type GraphicsAttrs,
+  GraphicsType,
   type IChanges,
   type SuikaEditor,
 } from '@suika/core';
+import { type IPoint } from '@suika/geo';
 import type * as Y from 'yjs';
 import { type YMap, type YMapEvent } from 'yjs/dist/src/internals';
+
+import { type IUserItem } from '../type';
+
+const devLog = (...data: any[]) => {
+  // console.log(...data);
+};
+
+interface Events {
+  usersChange(items: IUserItem[]): void;
+}
 
 export class SuikaBinding {
   private doc: Y.Doc;
   private dataInitialed = false;
 
+  private eventEmitter = new EventEmitter<Events>();
+
   constructor(
     private yMap: YMap<Record<string, any>>,
-    private suika: SuikaEditor,
+    private editor: SuikaEditor,
+    public awareness: NonNullable<HocuspocusProvider['awareness']>,
   ) {
     this.doc = yMap.doc!;
-    suika.doc.on('sceneChange', this.suikaObserve);
+    // data
+    editor.doc.on('sceneChange', this.suikaObserve);
     yMap.observe(this.yMapObserve);
+
+    // awareness
+    this.awareness.on('change', this.onAwarenessChange);
+    this.editor.mouseEventManager.on('cursorPosUpdate', this.onCursorPosChange);
+    this.awareness.setLocalStateField('user', {
+      name: 'user-' + this.awareness.clientID,
+      awarenessId: this.awareness.clientID,
+      pos: null,
+      color: getRandomColor(),
+    });
   }
 
   // editor --> remote
   private suikaObserve = (ops: IChanges) => {
     const yMap = this.yMap;
-    console.log('[[editor --> remote]]');
-    console.log(ops);
+    devLog('[[editor --> remote]]');
+    devLog(ops);
 
     this.doc.transact(() => {
       for (const [id, attrs] of ops.added) {
@@ -49,39 +76,99 @@ export class SuikaBinding {
     if (event.transaction.origin == this) {
       return;
     }
-    console.log('[[remote --> editor]]');
-    console.log('------ y.js event.changes ------');
-    console.log(event.changes);
+    devLog('[[remote --> editor]]');
+    devLog('------ y.js event.changes ------');
+    devLog(event.changes);
     const changes: IChanges = {
       added: new Map(),
       deleted: new Set(),
       update: new Map(),
     };
     for (const [id, { action }] of event.changes.keys) {
-      if (action === 'add') {
-        const attrs = yMap.get(id);
-        changes.added.set(id, attrs as GraphicsAttrs);
-      } else if (action === 'update') {
-        // TODO: don't update if attrs is same
-        changes.update.set(id, yMap.get(id) as GraphicsAttrs);
-      } else if (action === 'delete') {
+      if (action === 'delete') {
         changes.deleted.add(id);
+        return;
+      }
+      const attrs = yMap.get(id) as GraphicsAttrs;
+      if (action === 'add' && attrs.type !== GraphicsType.Document) {
+        changes.added.set(id, attrs);
+      } else if (action === 'update') {
+        changes.update.set(id, attrs);
       }
     }
 
-    console.log('------ parse to suika changes ------');
-    console.log(changes);
+    devLog('------ parse to suika changes ------');
+    devLog(changes);
 
-    this.suika.applyChanges(changes);
+    this.editor.applyChanges(changes);
     if (!this.dataInitialed) {
-      this.suika.zoomManager.zoomToFit(1);
+      this.editor.zoomManager.zoomToFit(1);
     }
     this.dataInitialed = true;
-    this.suika.render();
+    this.editor.render();
+  };
+
+  private onAwarenessChange = () => {
+    const users = Array.from(this.awareness.getStates().values())
+      .filter((item) => item.user)
+      .map((item) => item.user) as IUserItem[];
+    this.eventEmitter.emit('usersChange', users);
+  };
+
+  private onCursorPosChange = (pos: IPoint) => {
+    const localState = this.awareness.getLocalState()!;
+    this.awareness.setLocalStateField('user', {
+      ...localState.user,
+      pos: { ...pos },
+    });
   };
 
   destroy() {
+    // data
     this.yMap.unobserve(this.yMapObserve);
-    this.suika.doc.off('sceneChange', this.suikaObserve);
+    this.editor.doc.off('sceneChange', this.suikaObserve);
+
+    // awareness
+    this.editor.mouseEventManager.off(
+      'cursorPosUpdate',
+      this.onCursorPosChange,
+    );
+    this.awareness.off('change', this.onAwarenessChange);
+    this.awareness.destroy();
+  }
+
+  on<K extends keyof Events>(eventName: K, handler: Events[K]) {
+    this.eventEmitter.on(eventName, handler);
+  }
+
+  off<K extends keyof Events>(eventName: K, handler: Events[K]) {
+    this.eventEmitter.off(eventName, handler);
   }
 }
+
+const colors = [
+  '#0c83ac',
+  '#14b531',
+  '#ffbc42',
+  '#ee6352',
+  '#26a0b3',
+  '#3b9c37',
+  '#0794a5',
+  '#FFCD29',
+  '#FF0044',
+  '#9747FF',
+];
+
+const getRandomColor = () => {
+  const randNum = getRandom(0, colors.length - 1);
+  return colors[randNum];
+};
+
+const getRandom = (min: number, max: number) => {
+  if (min > max) {
+    [min, max] = [max, min];
+  }
+  min = Math.floor(min);
+  max = Math.ceil(max);
+  return Math.floor(Math.random() * (max - min + 1) + min);
+};
