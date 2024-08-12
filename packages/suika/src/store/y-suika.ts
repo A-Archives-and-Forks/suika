@@ -1,5 +1,5 @@
 import { type HocuspocusProvider } from '@hocuspocus/provider';
-import { EventEmitter, isEqual, pick } from '@suika/common';
+import { EventEmitter, isEqual, pick, throttle } from '@suika/common';
 import {
   type GraphicsAttrs,
   GraphicsType,
@@ -30,6 +30,7 @@ export class SuikaBinding {
     private yMap: YMap<Record<string, any>>,
     private editor: SuikaEditor,
     public awareness: NonNullable<HocuspocusProvider['awareness']>,
+    private user: { username: string; id: number },
   ) {
     this.doc = yMap.doc!;
     // data
@@ -40,7 +41,8 @@ export class SuikaBinding {
     this.awareness.on('change', this.onAwarenessChange);
     this.editor.mouseEventManager.on('cursorPosUpdate', this.onCursorPosChange);
     this.awareness.setLocalStateField('user', {
-      name: 'user-' + this.awareness.clientID,
+      id: this.user.id,
+      name: this.user.username,
       awarenessId: this.awareness.clientID,
       pos: null,
       color: getRandomColor(),
@@ -115,13 +117,16 @@ export class SuikaBinding {
     this.eventEmitter.emit('usersChange', users);
   };
 
-  private onCursorPosChange = (pos: IPoint) => {
+  private onCursorPosChange = throttle((pos: IPoint) => {
+    const activeClientCount = this.awareness.getStates().size;
+    if (activeClientCount < 2) return;
+
     const localState = this.awareness.getLocalState()!;
     this.awareness.setLocalStateField('user', {
       ...localState.user,
       pos: { ...pos },
     });
-  };
+  }, 80);
 
   destroy() {
     // data
@@ -146,23 +151,25 @@ export class SuikaBinding {
   }
 }
 
-const colors = [
-  '#0c83ac',
-  '#14b531',
-  '#ffbc42',
-  '#ee6352',
-  '#26a0b3',
-  '#3b9c37',
-  '#0794a5',
-  '#FFCD29',
-  '#FF0044',
-  '#9747FF',
-];
-
 const getRandomColor = () => {
   const randNum = getRandom(0, colors.length - 1);
   return colors[randNum];
 };
+
+const colors = [
+  '#0C83AC',
+  '#14B531',
+  '#FFBC42',
+  '#EE6352',
+  '#26A0B3',
+  '#3B9C37',
+  '#0794A5',
+  '#FFCD29',
+  '#FF0044',
+  '#9747FF',
+  '#FF24BD',
+  '#14AE5C',
+];
 
 const getRandom = (min: number, max: number) => {
   if (min > max) {

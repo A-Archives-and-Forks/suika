@@ -7,11 +7,15 @@ import { ZoomActions } from '../ZoomActions';
 import Title from './components/Title';
 import { ToolBar } from './components/Toolbar';
 
-export const Header: FC = () => {
+interface IProps {
+  title: string;
+}
+
+export const Header: FC<IProps> = ({ title }) => {
   return (
     <div className="sk-header">
       <ToolBar />
-      <Title value="suikajdsfjasdflasjfladf你好。。。。好" />
+      <Title value={title} />
       <div className="sk-right-area">
         <LocaleSelector />
         <ZoomActions />
