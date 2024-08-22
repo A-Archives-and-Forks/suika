@@ -82,7 +82,7 @@ export class SuikaPath extends SuikaGraphics<PathAttrs> {
     this.geoPath = null;
   }
 
-  private getGeoPath() {
+  getGeo() {
     if (!this.geoPath) {
       this.geoPath = new GeoPath(this.attrs.pathData);
     }
@@ -304,7 +304,7 @@ export class SuikaPath extends SuikaGraphics<PathAttrs> {
 
     const tf = new Matrix(...this.getWorldTransform());
     const point = tf.applyInverse({ x, y });
-    const geoPath = this.getGeoPath();
+    const geoPath = this.getGeo();
     const { dist } = geoPath.project(point);
     return dist <= tol + this.getStrokeWidth() / 2;
   }

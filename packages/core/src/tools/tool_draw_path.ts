@@ -13,6 +13,7 @@ import { type ICursor } from '../cursor_manager';
 import { type SuikaEditor } from '../editor';
 import { SuikaEllipse, SuikaPath } from '../graphs';
 import { PaintType } from '../paint';
+import { type PathEditor } from '../path_editor';
 import { PathSelectTool } from './tool_path_select';
 import { type ITool } from './type';
 
@@ -33,8 +34,11 @@ export class DrawPathTool implements ITool {
     pathData: IPathItem[];
   } | null = null;
   private pathIdx = 0;
+  private pathEditor: PathEditor;
 
-  constructor(private editor: SuikaEditor) {}
+  constructor(private editor: SuikaEditor) {
+    this.pathEditor = this.editor.pathEditor;
+  }
   onActive() {
     if (this.editor.pathEditor.isActive()) {
       this.path = this.editor.pathEditor.getPath()!;
@@ -49,6 +53,19 @@ export class DrawPathTool implements ITool {
     this.editor.render();
   }
 
+  private getSnapPt(point: IPoint) {
+    if (!this.path) return null;
+    // 吸附种类
+    // 1. 吸附到起点（实现闭合路径）
+    // { type: SnapType.Start, point }
+    // 2. 吸附到最近点（实现切分曲线合删除锚点，不在绘制过程中）
+    // { type: SnapType.Project, point }
+    // 3. 都不吸附，返回 null
+    if (this.isToAddFirstPointStatus()) {
+      const snapInfo = this.path!.getGeo().project(point);
+    }
+  }
+
   onMoveExcludeDrag(_e: PointerEvent, isOutsideCanvas: boolean) {
     const editor = this.editor;
     if (isOutsideCanvas) {
@@ -61,6 +78,7 @@ export class DrawPathTool implements ITool {
       editor.pathEditor.drawControlHandles();
     } else {
       const snapPoint = this.checkCursorPtInStartAnchor();
+      // TODO: 求最近点，做切分逻辑。
       if (snapPoint) {
         editor.setCursor('pen-close');
       } else {
@@ -72,12 +90,16 @@ export class DrawPathTool implements ITool {
     }
   }
 
+  private isToAddFirstPointStatus() {
+    return !this.path || this.path.hasPath(this.pathIdx);
+  }
+
   onStart() {
     const pathEditor = this.editor.pathEditor;
     const snapPoint = this.checkCursorPtInStartAnchor();
     this.startPoint = snapPoint ?? this.getCorrectedPoint();
 
-    // create new path
+    // create new path add active path editor
     if (!pathEditor.isActive()) {
       const pathData: IPathItem[] = [
         {
