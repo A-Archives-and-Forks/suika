@@ -259,8 +259,10 @@ export class TextEditor {
         this.inactive();
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         const textGraphics = this.textGraphics;
+        if (e.isComposing) return;
         if (!textGraphics) return;
         if (!textGraphics.attrs.content) return;
+
         const range = this.selectionManager.getSortedSelectionRange();
         const isCollapsed = this.selectionManager.isCollapsed();
 
