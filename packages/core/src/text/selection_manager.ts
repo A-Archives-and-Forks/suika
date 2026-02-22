@@ -1,7 +1,7 @@
 import { type IRect, Matrix } from '@suika/geo';
 
 import { type SuikaEditor } from '../editor';
-import { type IDrawInfo, type SuikaText } from '../graphics';
+import { type IDrawInfo, type IPosition, type SuikaText } from '../graphics';
 
 export interface IRange {
   start: number;
@@ -327,3 +327,22 @@ export class SelectionManager {
     ctx.restore();
   }
 }
+
+export const sortPosition = (positions: IPosition[]) => {
+  return positions.sort((a, b) => {
+    if (a.lineNum === b.lineNum) {
+      return a.column - b.column;
+    }
+    return a.lineNum - b.lineNum;
+  });
+};
+
+export const comparePosition = (a: IPosition, b: IPosition): 0 | 1 | -1 => {
+  let diff = a.lineNum - b.lineNum;
+  if (diff === 0) {
+    diff = a.column - b.column;
+  }
+  if (diff < 0) return -1;
+  if (diff > 0) return 1;
+  return 0;
+};

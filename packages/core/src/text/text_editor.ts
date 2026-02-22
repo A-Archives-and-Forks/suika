@@ -6,7 +6,11 @@ import { type IDrawInfo, SuikaText, type TextAttrs } from '../graphics';
 import { type IMousemoveEvent } from '../host_event_manager';
 import { removeGraphicsAndRecord } from '../service/remove_service';
 import { Transaction } from '../transaction';
-import { type ISelection, SelectionManager } from './selection_manager';
+import {
+  type ISelection,
+  SelectionManager,
+  sortPosition,
+} from './selection_manager';
 
 const defaultInputStyle = {
   position: 'fixed',
@@ -412,12 +416,29 @@ export class TextEditor {
       event.nativeEvent.preventDefault();
 
       const selection = this.textGraphics.getCursorIndex(mousePt);
-      this.selectionManager.setSelection({
-        anchorLineNum: selection.lineNum,
-        anchorColumn: selection.column,
-        focusLineNum: selection.lineNum,
-        focusColumn: selection.column,
-      });
+
+      if (this.editor.hostEventManager.isShiftPressing) {
+        const sortedPositions = sortPosition([
+          this.selectionManager.getStartPosition(),
+          this.selectionManager.getEndPosition(),
+          selection,
+        ]);
+        const startPosition = sortedPositions[0];
+        const endPosition = sortedPositions[sortedPositions.length - 1];
+        this.selectionManager.setSelection({
+          anchorLineNum: startPosition.lineNum,
+          anchorColumn: startPosition.column,
+          focusLineNum: endPosition.lineNum,
+          focusColumn: endPosition.column,
+        });
+      } else {
+        this.selectionManager.setSelection({
+          anchorLineNum: selection.lineNum,
+          anchorColumn: selection.column,
+          focusLineNum: selection.lineNum,
+          focusColumn: selection.column,
+        });
+      }
       this.editor.render();
     };
 
@@ -433,10 +454,27 @@ export class TextEditor {
 
       const mousePt = event.pos;
       const selection = this.textGraphics.getCursorIndex(mousePt);
-      this.selectionManager.setSelection({
-        focusLineNum: selection.lineNum,
-        focusColumn: selection.column,
-      });
+
+      if (this.editor.hostEventManager.isShiftPressing) {
+        const sortedPositions = sortPosition([
+          this.selectionManager.getStartPosition(),
+          this.selectionManager.getEndPosition(),
+          selection,
+        ]);
+        const startPosition = sortedPositions[0];
+        const endPosition = sortedPositions[sortedPositions.length - 1];
+        this.selectionManager.setSelection({
+          anchorLineNum: startPosition.lineNum,
+          anchorColumn: startPosition.column,
+          focusLineNum: endPosition.lineNum,
+          focusColumn: endPosition.column,
+        });
+      } else {
+        this.selectionManager.setSelection({
+          focusLineNum: selection.lineNum,
+          focusColumn: selection.column,
+        });
+      }
       this.editor.render();
     };
 
