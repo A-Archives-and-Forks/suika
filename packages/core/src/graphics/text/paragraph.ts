@@ -280,46 +280,33 @@ export class Paragraph {
     const startLine = Math.max(startPos.lineNum, 0);
     const endLine = Math.min(endPos.lineNum, glyphs.length - 1);
 
+    let width = this.width;
+    if (Number.isFinite(this.attrs.maxWidth)) {
+      width = this.pxToFontUnit(this.attrs.maxWidth);
+    }
+
     for (let lineIdx = startLine; lineIdx <= endLine; lineIdx++) {
       const line = glyphs[lineIdx];
       if (line.length === 0) continue;
 
       const lineLastCol = line.length - 1;
 
-      let colStart: number;
-      let colEnd: number;
+      const isStartLine = lineIdx === startLine;
+      const isEndLine = lineIdx === endLine;
 
-      if (lineIdx === startPos.lineNum && lineIdx === endPos.lineNum) {
-        colStart = startPos.column;
-        colEnd = endPos.column;
-      } else if (lineIdx === startPos.lineNum) {
-        colStart = startPos.column;
-        colEnd = lineLastCol;
-      } else if (lineIdx === endPos.lineNum) {
-        colStart = 0;
-        colEnd = endPos.column;
-      } else {
-        colStart = 0;
-        colEnd = lineLastCol;
-      }
+      const colStart = Math.min(isStartLine ? startPos.column : 0);
+      const x = line[colStart].position.x;
 
-      colStart = Math.max(0, Math.min(colStart, lineLastCol));
-      colEnd = Math.max(0, Math.min(colEnd, lineLastCol));
+      const colEnd = Math.max(
+        0,
+        Math.min(isEndLine ? endPos.column : lineLastCol, lineLastCol),
+      );
+      const x2 = isEndLine ? line[colEnd].position.x : width;
 
-      const glyphStart = line[colStart];
-      const x = glyphStart.position.x;
-      const y = glyphStart.position.y;
-
-      let x2 = 0;
-      if (colEnd === lineLastCol && lineIdx !== endPos.lineNum) {
-        x2 = this.width;
-      } else {
-        const glyphEnd = line[colEnd];
-        x2 = glyphEnd.position.x;
-      }
+      const y = line[colStart].position.y;
 
       rects.push({
-        x: x,
+        x,
         y: y + rectOffsetY,
         width: x2 - x,
         height: rectHeight,
