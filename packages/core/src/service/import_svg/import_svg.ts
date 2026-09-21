@@ -2,7 +2,7 @@ import { genUuid, parseHexToRGBA } from '@suika/common';
 import { boxToRect, GeoPath, type IPathItem } from '@suika/geo';
 import svgpath from 'svgpath';
 
-import { type GraphicsAttrs } from '../../graphics';
+import { type GraphicsAttrs, Paragraph } from '../../graphics';
 import { type IPaint, PaintType } from '../../paint';
 import { GraphicsType } from '../../type';
 import { svgToJson } from './svg_to_json';
@@ -298,23 +298,45 @@ const toGraphicsAttrs = (
       };
     }
     case 'text': {
+      const content = node.text ?? '';
       const fontSize = numberAttr(attributes, 'font-size') || 16;
-      return {
+      const fontFamily = attributes['font-family'] ?? 'Arial'; // TODO: use setting default value
+      const paragraph = new Paragraph({
+        content,
+        fontSize,
+        fontFamily,
+        // Keep these in sync with SuikaText's defaults so the imported bounds
+        // match the text renderer's layout.
+        lineHeight: { value: 1, units: 'RAW' },
+        letterSpacing: { value: 0, units: 'PIXELS' },
+        maxWidth: Infinity,
+      });
+      const { width, height } = paragraph.getLayoutSize();
+      const anchor = attributes['text-anchor'];
+      let anchorOffset = 0;
+      if (anchor === 'middle') {
+        anchorOffset = width / 2;
+      } else if (anchor === 'end') {
+        anchorOffset = width;
+      }
+
+      const attrs = {
         ...base,
         type: GraphicsType.Text,
-        content: node.text ?? '',
+        content,
         fontSize,
-        fontFamily: attributes['font-family'] ?? 'Arial',
-        width: numberAttr(attributes, 'width') || 80,
-        height: numberAttr(attributes, 'height') || fontSize,
+        fontFamily,
+        width,
+        height,
         transform: multiplyTransform(
           transform,
           translate(
-            numberAttr(attributes, 'x'),
+            numberAttr(attributes, 'x') - anchorOffset,
             numberAttr(attributes, 'y') - fontSize,
           ),
         ),
       } as GraphicsAttrs;
+      return attrs;
     }
     default:
       return null;
